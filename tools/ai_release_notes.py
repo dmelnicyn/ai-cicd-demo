@@ -218,21 +218,25 @@ def call_openai(prompt: str, api_key: str) -> str:
 def get_release_for_tag(
     repo: str, tag: str, github_token: str
 ) -> dict[str, Any] | None:
-    """Check if a release exists for the given tag.
+    """Check if a release exists for the given tag (including drafts).
 
     Returns the release data or None if not found.
+
+    Note: The /releases/tags/{tag} endpoint only returns published releases,
+    not drafts. We must list all releases and filter by tag_name.
     """
     try:
-        release: dict[str, Any] = github_request(
+        releases: list[dict[str, Any]] = github_request(
             "GET",
-            f"/repos/{repo}/releases/tags/{tag}",
+            f"/repos/{repo}/releases?per_page=100",
             github_token,
         )
-        return release
-    except requests.HTTPError as e:
-        if e.response is not None and e.response.status_code == 404:
-            return None
-        raise
+        for release in releases:
+            if release.get("tag_name") == tag:
+                return release
+    except requests.HTTPError:
+        pass
+    return None
 
 
 def create_or_update_release(
