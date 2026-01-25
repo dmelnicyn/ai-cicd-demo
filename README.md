@@ -53,9 +53,16 @@ ai-cicd-demo/
 │       ├── __init__.py      # Package init
 │       ├── main.py          # FastAPI app and endpoints
 │       └── models.py        # Pydantic models
-└── tests/
-    ├── __init__.py
-    └── test_main.py         # API tests using TestClient
+├── tests/
+│   ├── __init__.py
+│   └── test_main.py         # API tests using TestClient
+├── tools/
+│   ├── shared.py            # Shared utilities for AI tools
+│   ├── ai_pr_summary.py     # AI PR summary generator
+│   └── ai_test_draft.py     # AI draft test generator
+└── prompts/
+    ├── pr_summary.md        # PR summary prompt template
+    └── test_generation.md   # Test generation prompt template
 ```
 
 ## API Endpoints
@@ -98,6 +105,33 @@ Security features:
 - Minimal permissions (contents read, pull-requests write)
 
 See [`.github/workflows/ai_pr_summary.yml`](.github/workflows/ai_pr_summary.yml).
+
+## AI Draft Test Generator
+
+Automatically generates draft pytest test suggestions for changed Python source files in pull requests.
+
+**Outputs:**
+- **PR Comment** — Summary with sample test suggestions
+- **Artifact** — Full `draft_tests.md` with per-file test suggestions (7-day retention)
+
+**Focus:**
+- Analyzes Python files under `src/`
+- Ignores venv, lockfiles, markdown, existing tests
+- For each file: what to test, pytest code blocks, testability notes
+- Identifies hard-to-test code and suggests refactor points
+
+**Non-destructive:** Generated tests are suggestions only — they are never committed automatically.
+
+**Required Secret:** `OPENAI_API_KEY` (same as AI PR Summary)
+
+If the secret is not configured, the workflow skips gracefully with a notice.
+
+Security features:
+- Potential secrets are redacted before sending to OpenAI
+- Large patches are truncated to prevent excessive API costs
+- Minimal permissions (contents read, pull-requests write)
+
+See [`.github/workflows/ai_test_draft.yml`](.github/workflows/ai_test_draft.yml).
 
 ## PR Title Convention
 
