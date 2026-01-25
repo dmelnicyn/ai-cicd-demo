@@ -58,11 +58,11 @@ def get_previous_tag(
 
 def get_commits_between(
     repo: str, base: str | None, head: str, github_token: str
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], int]:
     """Get commits between two refs using compare API.
 
     If base is None (first release), get commits from the beginning.
-    Returns up to MAX_COMMITS commits.
+    Returns (commits capped to MAX_COMMITS, total_count).
     """
     if base:
         # Use compare endpoint
@@ -72,6 +72,8 @@ def get_commits_between(
             github_token,
         )
         commits: list[dict[str, Any]] = compare_data.get("commits", [])
+        # Use total_commits from API if available, else fall back to len
+        total_count = compare_data.get("total_commits", len(commits))
     else:
         # First release: get recent commits up to the tag
         commits = github_request(
@@ -79,8 +81,10 @@ def get_commits_between(
             f"/repos/{repo}/commits?sha={head}&per_page={MAX_COMMITS}",
             github_token,
         )
+        # For first release, we only know about commits returned (already capped)
+        total_count = len(commits)
 
-    return commits[:MAX_COMMITS]
+    return commits[:MAX_COMMITS], total_count
 
 
 def get_pr_for_commit(
@@ -88,38 +92,41 @@ def get_pr_for_commit(
 ) -> dict[str, Any] | None:
     """Get associated PR for a commit, if any.
 
-    Uses the /commits/{sha}/pulls endpoint which requires a specific Accept header.
+    Uses the /commits/{sha}/pulls endpoint. Retries once with alternative
+    Accept header if the first attempt fails.
     Returns the first (most relevant) PR or None if no PR is associated.
     """
-    try:
-        prs: list[dict[str, Any]] = github_request_with_headers(
-            "GET",
-            f"/repos/{repo}/commits/{sha}/pulls",
-            github_token,
-            extra_headers={"Accept": "application/vnd.github+json"},
-        )
-        if prs:
-            return prs[0]  # Return the first/most relevant PR
-    except requests.HTTPError:
-        # Some commits may not have associated PRs or endpoint may fail
-        pass
+    endpoint = f"/repos/{repo}/commits/{sha}/pulls"
+    accept_headers = [
+        "application/vnd.github+json",
+        "application/json",  # Fallback
+    ]
+
+    for accept in accept_headers:
+        try:
+            prs: list[dict[str, Any]] = github_request_with_headers(
+                "GET",
+                endpoint,
+                github_token,
+                extra_headers={"Accept": accept},
+            )
+            if prs:
+                return prs[0]  # Return the first/most relevant PR
+            return None  # Empty list means no associated PR
+        except requests.HTTPError:
+            continue  # Try next Accept header
+
     return None
 
 
 def build_changes_list(
     commits: list[dict[str, Any]], repo: str, github_token: str
-) -> tuple[str, int]:
+) -> str:
     """Build formatted changes list with PR titles where available.
 
-    Returns (changes_text, omitted_count).
+    Returns changes_text.
     """
     changes: list[str] = []
-    total_commits = len(commits)
-    omitted = 0
-
-    if total_commits > MAX_COMMITS:
-        omitted = total_commits - MAX_COMMITS
-        commits = commits[:MAX_COMMITS]
 
     for commit in commits:
         sha = commit.get("sha", "")
@@ -141,7 +148,7 @@ def build_changes_list(
         if subject:
             changes.append(f"- {subject}")
 
-    return "\n".join(changes), omitted
+    return "\n".join(changes)
 
 
 def load_prompt_template() -> str:
@@ -304,8 +311,9 @@ def main() -> None:
         print(f"Previous tag: {previous_tag}")
 
     # Get commits between tags
-    commits = get_commits_between(repo, previous_tag, tag, github_token)
-    print(f"Found {len(commits)} commits")
+    commits, total_count = get_commits_between(repo, previous_tag, tag, github_token)
+    omitted = max(0, total_count - len(commits))
+    print(f"Found {total_count} commits (processing {len(commits)})")
 
     if not commits:
         print("::warning::No commits found between tags")
@@ -314,10 +322,11 @@ def main() -> None:
         save_release_notes(body)
         return
 
-    # Build changes list with PR titles
-    changes, omitted = build_changes_list(commits, repo, github_token)
     if omitted > 0:
         print(f"::notice::{omitted} commits omitted due to size limits")
+
+    # Build changes list with PR titles
+    changes = build_changes_list(commits, repo, github_token)
 
     # Redact potential secrets
     changes = redact_secrets(changes)
