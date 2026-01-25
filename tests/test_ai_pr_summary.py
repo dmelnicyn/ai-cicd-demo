@@ -1,6 +1,6 @@
-"""Unit tests for tools/ai_pr_summary.py."""
+"""Unit tests for tools/shared.py redact_secrets function."""
 
-from ai_pr_summary import redact_secrets
+from shared import redact_secrets
 
 
 class TestRedactSecrets:

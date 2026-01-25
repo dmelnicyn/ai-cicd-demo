@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from openai import OpenAI
-from tools.shared import (
+from shared import (
     check_openai_key,
     fetch_pr_data,
     get_env_or_exit,
