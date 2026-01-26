@@ -1,4 +1,4 @@
-.PHONY: install run test lint format check coverage
+.PHONY: install run test lint format check coverage llm-evals
 
 install:
 	uv sync --all-extras
@@ -21,3 +21,6 @@ format:
 	uv run ruff check --fix .
 
 check: lint test
+
+llm-evals:
+	uv run python tools/run_llm_evals.py

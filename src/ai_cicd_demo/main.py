@@ -2,7 +2,16 @@
 
 from fastapi import FastAPI, HTTPException
 
-from ai_cicd_demo.models import HealthResponse, Item, User, UserCreate
+from ai_cicd_demo.ai.intent import classify_intent
+from ai_cicd_demo.ai.openai_client import OpenAIError
+from ai_cicd_demo.models import (
+    HealthResponse,
+    IntentRequest,
+    IntentResponse,
+    Item,
+    User,
+    UserCreate,
+)
 
 app = FastAPI(
     title="AI CI/CD Demo",
@@ -89,3 +98,31 @@ def list_users() -> list[User]:
         List of all users.
     """
     return list(_users.values())
+
+
+@app.post("/ai/classify_intent", response_model=IntentResponse)
+def classify_intent_endpoint(request: IntentRequest) -> IntentResponse:
+    """Classify the intent of a text message.
+
+    Uses OpenAI to classify text into one of:
+    - QUESTION: The user is asking a question
+    - REQUEST: The user is asking for an action
+    - COMPLAINT: The user is expressing dissatisfaction
+    - OTHER: Doesn't fit the above categories
+
+    Args:
+        request: The text to classify.
+
+    Returns:
+        The classified intent.
+
+    Raises:
+        HTTPException: If classification fails.
+    """
+    try:
+        intent = classify_intent(request.text)
+        return IntentResponse(intent=intent)
+    except OpenAIError as e:
+        raise HTTPException(status_code=503, detail=f"AI service unavailable: {e}")
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=f"Classification error: {e}")

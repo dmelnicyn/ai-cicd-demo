@@ -1,5 +1,7 @@
 """Pydantic models for the API."""
 
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -33,3 +35,15 @@ class User(BaseModel):
     email: str
     full_name: str | None = None
     is_active: bool = True
+
+
+class IntentRequest(BaseModel):
+    """Request model for intent classification."""
+
+    text: str = Field(..., min_length=1, description="Text to classify")
+
+
+class IntentResponse(BaseModel):
+    """Response model for intent classification."""
+
+    intent: Literal["QUESTION", "REQUEST", "COMPLAINT", "OTHER"]

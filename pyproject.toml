@@ -8,6 +8,7 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "email-validator>=2.0.0",
+    "openai>=1.0.0",
 ]
 
 [project.optional-dependencies]
@@ -18,7 +19,6 @@ dev = [
     "ruff>=0.8.0",
     "mypy>=1.13.0",
     "requests>=2.31.0",
-    "openai>=1.0.0",
 ]
 
 [build-system]

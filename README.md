@@ -40,6 +40,7 @@ uv sync --all-extras
 | Lint code | `make lint` | `uv run ruff check . && uv run mypy src` |
 | Format code | `make format` | `uv run ruff format . && uv run ruff check --fix .` |
 | All checks | `make check` | Runs lint + test |
+| LLM evals | `make llm-evals` | `uv run python tools/run_llm_evals.py` |
 
 ## Project Structure
 
@@ -53,15 +54,22 @@ ai-cicd-demo/
 │   └── ai_cicd_demo/
 │       ├── __init__.py      # Package init
 │       ├── main.py          # FastAPI app and endpoints
-│       └── models.py        # Pydantic models
+│       ├── models.py        # Pydantic models
+│       └── ai/              # AI module
+│           ├── __init__.py
+│           ├── openai_client.py  # OpenAI wrapper
+│           └── intent.py         # Intent classifier
 ├── tests/
 │   ├── __init__.py
 │   └── test_main.py         # API tests using TestClient
+├── evals/
+│   └── golden_intent.json   # Golden set for LLM evals
 ├── tools/
 │   ├── shared.py            # Shared utilities for AI tools
 │   ├── ai_pr_summary.py     # AI PR summary generator
 │   ├── ai_test_draft.py     # AI draft test generator
-│   └── ai_release_notes.py  # AI release notes generator
+│   ├── ai_release_notes.py  # AI release notes generator
+│   └── run_llm_evals.py     # LLM eval runner
 └── prompts/
     ├── pr_summary.md        # PR summary prompt template
     ├── test_generation.md   # Test generation prompt template
@@ -72,6 +80,7 @@ ai-cicd-demo/
 
 - `GET /health` - Health check, returns `{"status": "ok"}`
 - `GET /items/{item_id}` - Get item by ID (mock data)
+- `POST /ai/classify_intent` - Classify text intent (see [AI Intent Classifier](#ai-intent-classifier))
 - `GET /docs` - Swagger UI documentation (when server is running)
 
 ## Tooling
@@ -116,6 +125,97 @@ fail_under = 80
 ```
 
 To adjust, change the `fail_under` value.
+
+## AI Intent Classifier
+
+Classifies text into one of four intent categories using OpenAI:
+
+- **QUESTION** - User is asking a question or seeking information
+- **REQUEST** - User is asking for an action to be performed
+- **COMPLAINT** - User is expressing dissatisfaction
+- **OTHER** - Doesn't fit the above categories
+
+### Usage
+
+**Endpoint:** `POST /ai/classify_intent`
+
+```bash
+curl -X POST http://localhost:8000/ai/classify_intent \
+  -H "Content-Type: application/json" \
+  -d '{"text": "What time does the store open?"}'
+```
+
+**Response:**
+
+```json
+{"intent": "QUESTION"}
+```
+
+### LLM Evals (Golden Set Testing)
+
+The intent classifier has a golden set of test cases in `evals/golden_intent.json` that validate model behavior.
+
+**Run locally:**
+
+```bash
+export OPENAI_API_KEY=sk-...
+make llm-evals
+```
+
+**Output:**
+
+```
+============================================================
+LLM Intent Classification Evals
+============================================================
+
+Loaded 10 test cases from golden_intent.json
+Per-test timeout: 30s
+Total timeout: 300s
+------------------------------------------------------------
+[PASS] q1: QUESTION == QUESTION
+[PASS] q2: QUESTION == QUESTION
+...
+------------------------------------------------------------
+
+Results: 10/10 passed
+Time: 12.34s
+
+All LLM evals passed!
+```
+
+**CI:** LLM evals run automatically on push to `main` and on pull requests. If `OPENAI_API_KEY` is not configured, the job skips gracefully with a notice.
+
+See [`.github/workflows/llm_evals.yml`](.github/workflows/llm_evals.yml).
+
+### Adding New Golden Test Cases
+
+Edit `evals/golden_intent.json`:
+
+```json
+{
+  "id": "unique_id",
+  "input_text": "Your test input here",
+  "expected_intent": "QUESTION",
+  "notes": "Optional description"
+}
+```
+
+### Determinism
+
+To minimize flakiness and ensure consistent results:
+
+- **Temperature:** 0 (fully deterministic sampling)
+- **Constrained output:** System prompt forces exactly one of 4 labels
+- **Low max_tokens:** 10 tokens prevents verbose responses
+- **Model:** gpt-4o-mini (pinned)
+
+### Cost
+
+Using gpt-4o-mini with ~50 tokens per request:
+- **Per classification:** ~$0.0001
+- **10-case eval run:** ~$0.001
+- **Monthly CI (100 runs):** ~$0.10
 
 ## AI PR Summary
 

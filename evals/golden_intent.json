@@ -1,0 +1,62 @@
+[
+  {
+    "id": "q1",
+    "input_text": "What time does the store open?",
+    "expected_intent": "QUESTION",
+    "notes": "Direct question about business hours"
+  },
+  {
+    "id": "q2",
+    "input_text": "How do I reset my password?",
+    "expected_intent": "QUESTION",
+    "notes": "How-to question seeking information"
+  },
+  {
+    "id": "q3",
+    "input_text": "Can you explain how returns work?",
+    "expected_intent": "QUESTION",
+    "notes": "Request for explanation phrased as question"
+  },
+  {
+    "id": "r1",
+    "input_text": "Please send me the invoice",
+    "expected_intent": "REQUEST",
+    "notes": "Polite request for action"
+  },
+  {
+    "id": "r2",
+    "input_text": "I need a refund for order #123",
+    "expected_intent": "REQUEST",
+    "notes": "Request for specific action on order"
+  },
+  {
+    "id": "r3",
+    "input_text": "Cancel my subscription immediately",
+    "expected_intent": "REQUEST",
+    "notes": "Direct action request"
+  },
+  {
+    "id": "c1",
+    "input_text": "Your service is terrible",
+    "expected_intent": "COMPLAINT",
+    "notes": "Direct negative feedback"
+  },
+  {
+    "id": "c2",
+    "input_text": "I have been waiting for 3 weeks and still no response",
+    "expected_intent": "COMPLAINT",
+    "notes": "Complaint about delayed response"
+  },
+  {
+    "id": "o1",
+    "input_text": "Thank you for your help",
+    "expected_intent": "OTHER",
+    "notes": "Gratitude expression"
+  },
+  {
+    "id": "o2",
+    "input_text": "Hello",
+    "expected_intent": "OTHER",
+    "notes": "Simple greeting"
+  }
+]
