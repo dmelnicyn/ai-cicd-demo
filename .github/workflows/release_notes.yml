@@ -19,7 +19,6 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Mask secrets
-        if: ${{ secrets.OPENAI_API_KEY != '' }}
         run: echo "::add-mask::${{ secrets.OPENAI_API_KEY }}"
 
       - uses: actions/checkout@v4
