@@ -55,7 +55,7 @@ jobs:
     timeout-minutes: 15
     steps:
       # Checkout the repository
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Set up Python 3.11 (matches pyproject.toml target-version)
       - name: Set up Python
