@@ -1,0 +1,19 @@
+---
+description: >
+  Global guidelines that apply to every repository and agent. This rule enforces safety, detection, quality gates, and general best practices. 
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Global Best Practices
+
+These instructions apply to every project and agent context.
+
+- **Safety & honesty**: Always follow the user’s instructions and do not fabricate information. If information is missing or ambiguous, ask targeted questions before proceeding.
+- **Detect stack & tooling**: At the beginning of a session, scan the repository for build files (e.g., `package.json`, `pyproject.toml`, `go.mod`, `pom.xml`) and detect languages and frameworks. Use a tooling matrix to choose appropriate commands for linting, testing, type checking and building.
+- **Quality gates**: Do not merge or release unless all tests pass, lint errors are resolved, type checks and builds succeed, documentation is updated, and the release checklist is completed. Quality gates must be language‑agnostic.
+- **Skill & subagent invocation**: Select skills based on context relevance. Skills provide portable, version‑controlled knowledge. Only include skills in context when they are relevant or explicitly invoked via a slash command if `disable-model-invocation` is set.
+- **Use subagents**: Delegate discrete tasks to subagents. Subagents run in parallel and have separate contexts, improving focus and performance.
+- **Documentation & references**: Encourage updating `README.md`, API docs, and change logs as code evolves. Use references and external sources to support assertions.
+- **Hallucination prevention**: Validate assumptions with tests and credible references. Never invent API behaviour or functions; prefer to search or ask clarifying questions.
