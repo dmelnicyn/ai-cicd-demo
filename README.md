@@ -1,329 +1,279 @@
-# AI CI/CD Demo
+# Multi-Stack CI/CD Template
 
-A minimal FastAPI learning template for CI/CD with Python.
+A portable, language-agnostic CI/CD template with Cursor AI integration. Supports Python, Node.js, Go, and Java with automatic stack detection.
 
-## Prerequisites
+## Features
 
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- **Multi-stack support**: Python (pip/uv), Node.js, Go, Java
+- **Automatic stack detection**: CI detects your stack from marker files
+- **Pre-activation friendly**: Works before stack is decided (planning/architecture phase)
+- **Reusable workflows**: Parameterized GitHub Actions for consistent CI
+- **Cursor AI integration**: Skills, agents, and rules for AI-assisted development
+- **AI CI tools**: PR summaries, test drafts, release notes (see examples/)
 
-Install uv if you don't have it:
+## Quick Start
 
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+### Use as GitHub Template
 
-## Setup
+1. Click "Use this template" on GitHub
+2. Clone your new repository
+3. Start planning your architecture (no stack needed yet!)
+4. When ready, run the `bootstrap-stack` Cursor skill to activate your stack
+5. Push to trigger CI
 
-Clone the repository and install dependencies:
+### Manual Setup
 
 ```bash
 git clone <repo-url>
-cd ai-cicd-demo
-make install
+cd <project-name>
+
+# Option 1: Use bootstrap skill in Cursor
+# Run: /bootstrap-stack
+
+# Option 2: Create stack manually
+echo "stack: python-uv" > tools/stack.yml
+# Then create pyproject.toml, package.json, go.mod, or pom.xml
 ```
 
-Or without make:
+## Project Lifecycle
 
-```bash
-uv sync --all-extras
+```
+┌─────────────────┐     ┌──────────────┐     ┌────────────────┐
+│ Pre-Activation  │ ──▶ │  Activation  │ ──▶ │   Active Dev   │
+│ (planning/arch) │     │  (bootstrap) │     │  (full CI)     │
+└─────────────────┘     └──────────────┘     └────────────────┘
+
+Pre-Activation:          Activation:           Active Development:
+- CI shows notice        - Run bootstrap       - Full lint/test/build
+- PR title validated     - Creates markers     - Coverage reports
+- No build checks        - Locks stack         - Security scans
 ```
 
-## Commands
+## Stack Detection
 
-| Task | Make Command | Direct Command |
-|------|--------------|----------------|
-| Install deps | `make install` | `uv sync --all-extras` |
-| Run server | `make run` | `uv run uvicorn ai_cicd_demo.main:app --reload` |
-| Run tests | `make test` | `uv run pytest -v` |
-| Run coverage | `make coverage` | `uv run pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-report=html` |
-| Lint code | `make lint` | `uv run ruff check . && uv run mypy src` |
-| Format code | `make format` | `uv run ruff format . && uv run ruff check --fix .` |
-| All checks | `make check` | Runs lint + test |
-| LLM evals | `make llm-evals` | `uv run python tools/run_llm_evals.py` |
+CI automatically detects your stack using two methods:
+
+### 1. Explicit Lock (Preferred)
+
+Create `tools/stack.yml`:
+
+```yaml
+stack: python-uv  # or: python, node, go, java
+version: "1.0"
+```
+
+### 2. Marker File Detection
+
+If no lock file exists, CI detects stack from marker files:
+
+| Stack | Marker Files |
+|-------|--------------|
+| `python-uv` | `uv.lock` |
+| `python` | `pyproject.toml`, `setup.py`, `requirements.txt` |
+| `node` | `package.json` |
+| `go` | `go.mod` |
+| `java` | `pom.xml`, `build.gradle` |
+
+Detection order matters: `uv.lock` > `pyproject.toml` > others.
+
+## Supported Stacks
+
+### Python (uv) - Recommended
+
+```yaml
+# tools/stack.yml
+stack: python-uv
+```
+
+Commands:
+- Install: `uv sync --all-extras`
+- Lint: `uv run ruff check . && uv run mypy src`
+- Test: `uv run pytest -v`
+- Coverage: `uv run pytest --cov=src --cov-report=xml`
+- Build: `uv build`
+- Scan: `uv run pip-audit`
+
+### Python (pip)
+
+```yaml
+stack: python
+```
+
+Commands:
+- Install: `pip install -e '.[dev]'`
+- Lint: `ruff check . && mypy src`
+- Test: `pytest -v`
+
+### Node.js
+
+```yaml
+stack: node
+```
+
+Commands:
+- Install: `npm ci`
+- Lint: `npm run lint`
+- Test: `npm test`
+- Typecheck: `npm run typecheck`
+- Build: `npm run build`
+- Scan: `npm audit --audit-level=moderate`
+
+### Go
+
+```yaml
+stack: go
+```
+
+Commands:
+- Install: `go mod download`
+- Lint: `golangci-lint run`
+- Test: `go test -v ./...`
+- Coverage: `go test -coverprofile=coverage.out ./...`
+- Build: `go build ./...`
+- Scan: `govulncheck ./...`
+
+### Java (Maven)
+
+```yaml
+stack: java
+```
+
+Commands:
+- Install: `mvn dependency:resolve`
+- Lint: `mvn checkstyle:check`
+- Test: `mvn test`
+- Coverage: `mvn test jacoco:report`
+- Build: `mvn package -DskipTests`
+- Scan: `mvn org.owasp:dependency-check-maven:check`
+
+## Customizing Commands
+
+Edit `tools/tooling-matrix.yml` to customize CI commands:
+
+```yaml
+stacks:
+  python-uv:
+    commands:
+      lint: "uv run ruff check . && uv run mypy src"
+      test: "uv run pytest -v --timeout=60"  # Add timeout
+```
 
 ## Project Structure
 
 ```
-ai-cicd-demo/
-├── pyproject.toml          # Project config, dependencies, tool settings
-├── uv.lock                  # Locked dependencies
-├── Makefile                 # Developer commands
-├── README.md                # This file
-├── src/
-│   └── ai_cicd_demo/
-│       ├── __init__.py      # Package init
-│       ├── main.py          # FastAPI app and endpoints
-│       ├── models.py        # Pydantic models
-│       └── ai/              # AI module
-│           ├── __init__.py
-│           ├── openai_client.py  # OpenAI wrapper
-│           └── intent.py         # Intent classifier
-├── tests/
-│   ├── __init__.py
-│   └── test_main.py         # API tests using TestClient
-├── evals/
-│   └── golden_intent.json   # Golden set for LLM evals
+project/
+├── .cursor/
+│   ├── rules/           # Cursor AI rules
+│   ├── agents/          # Cursor AI subagents
+│   └── skills/          # Cursor AI skills
+├── .github/
+│   └── workflows/
+│       ├── ci.yml              # Main CI (stack detection)
+│       └── reusable-ci.yml     # Parameterized workflow
+├── docs/                # Documentation
+├── evals/               # Evaluation test data
+├── examples/
+│   └── python-fastapi/  # Reference FastAPI example
+├── prompts/             # AI prompt templates
+├── src/                 # Source code (created by bootstrap)
+├── tests/               # Tests (created by bootstrap)
 ├── tools/
-│   ├── shared.py            # Shared utilities for AI tools
-│   ├── ai_pr_summary.py     # AI PR summary generator
-│   ├── ai_test_draft.py     # AI draft test generator
-│   ├── ai_release_notes.py  # AI release notes generator
-│   └── run_llm_evals.py     # LLM eval runner
-└── prompts/
-    ├── pr_summary.md        # PR summary prompt template
-    ├── test_generation.md   # Test generation prompt template
-    └── release_notes.md     # Release notes prompt template
+│   ├── ci/
+│   │   ├── detect_stack.py     # Stack detection script
+│   │   └── select_commands.py  # Command selection script
+│   ├── tooling-matrix.yml      # Stack → commands mapping
+│   └── stack.yml               # Stack lock (optional)
+├── README.md
+└── SECURITY.md
 ```
 
-## API Endpoints
+## Cursor AI Integration
 
-- `GET /health` - Health check, returns `{"status": "ok"}`
-- `GET /items/{item_id}` - Get item by ID (mock data)
-- `POST /ai/classify_intent` - Classify text intent (see [AI Intent Classifier](#ai-intent-classifier))
-- `GET /docs` - Swagger UI documentation (when server is running)
+This template includes Cursor AI defaults for AI-assisted development.
 
-## Tooling
+### Rules
 
-- **Dependency management**: [uv](https://docs.astral.sh/uv/)
-- **Linting & formatting**: [ruff](https://docs.astral.sh/ruff/)
-- **Type checking**: [mypy](https://mypy-lang.org/)
-- **Testing**: [pytest](https://pytest.org/) with FastAPI TestClient
+- `001-global-best-practices.mdc` - Safety, detection, quality gates
+- `002-ci-cd-template.mdc` - CI/CD configuration guidelines
+- `003-security-quality.mdc` - Security and quality gates
 
-## CI
+### Skills
 
-GitHub Actions runs on push to `main` and on pull requests:
-- `make lint` — ruff + mypy
-- `make coverage` — pytest with coverage (fails if below 80%)
+| Skill | Description |
+|-------|-------------|
+| `architecture` | Design system architecture |
+| `bootstrap-stack` | Activate technology stack |
+| `code-review` | Review code changes |
+| `implementation` | Implement features |
+| `planning` | Plan project requirements |
+| `qa` | Quality assurance |
+| `refactor-simplify` | Refactor and simplify code |
+| `release-management` | Manage releases |
+| `security` | Security review |
 
-Coverage reports (`coverage.xml` and `htmlcov/`) are uploaded as artifacts.
+### Agents
 
-See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+Corresponding subagents for each skill that can run autonomously.
 
-## Coverage
+## CI Workflow
 
-CI enforces a minimum **80% code coverage** threshold. Coverage is configured in `pyproject.toml`.
+### Pre-Activation (No Stack)
 
-### Running Locally
+When no stack is detected, CI:
+1. Validates PR title (Conventional Commits)
+2. Shows informative notice about missing stack
+3. Provides instructions to activate
 
-```bash
-make coverage
-```
+### Active Development
 
-This generates:
-- Terminal summary with missing lines
-- `coverage.xml` (Cobertura format)
-- `htmlcov/` folder (open `htmlcov/index.html` in browser)
-
-### Threshold
-
-The 80% threshold is configured in `pyproject.toml` under `[tool.coverage.report]`:
-
-```toml
-[tool.coverage.report]
-fail_under = 80
-```
-
-To adjust, change the `fail_under` value.
-
-## AI Intent Classifier
-
-Classifies text into one of four intent categories using OpenAI:
-
-- **QUESTION** - User is asking a question or seeking information
-- **REQUEST** - User is asking for an action to be performed
-- **COMPLAINT** - User is expressing dissatisfaction
-- **OTHER** - Doesn't fit the above categories
-
-### Usage
-
-**Endpoint:** `POST /ai/classify_intent`
-
-```bash
-curl -X POST http://localhost:8000/ai/classify_intent \
-  -H "Content-Type: application/json" \
-  -d '{"text": "What time does the store open?"}'
-```
-
-**Response:**
-
-```json
-{"intent": "QUESTION"}
-```
-
-### LLM Evals (Golden Set Testing)
-
-The intent classifier has a golden set of test cases in `evals/golden_intent.json` that validate model behavior.
-
-**Run locally:**
-
-```bash
-export OPENAI_API_KEY=sk-...
-make llm-evals
-```
-
-**Output:**
-
-```
-============================================================
-LLM Intent Classification Evals
-============================================================
-
-Loaded 10 test cases from golden_intent.json
-Per-test timeout: 30s
-Total timeout: 300s
-------------------------------------------------------------
-[PASS] q1: QUESTION == QUESTION
-[PASS] q2: QUESTION == QUESTION
-...
-------------------------------------------------------------
-
-Results: 10/10 passed
-Time: 12.34s
-
-All LLM evals passed!
-```
-
-**CI:** LLM evals run automatically on push to `main` and on pull requests. If `OPENAI_API_KEY` is not configured, the job skips gracefully with a notice.
-
-See [`.github/workflows/llm_evals.yml`](.github/workflows/llm_evals.yml).
-
-### Adding New Golden Test Cases
-
-Edit `evals/golden_intent.json`:
-
-```json
-{
-  "id": "unique_id",
-  "input_text": "Your test input here",
-  "expected_intent": "QUESTION",
-  "notes": "Optional description"
-}
-```
-
-### Determinism
-
-To minimize flakiness and ensure consistent results:
-
-- **Temperature:** 0 (fully deterministic sampling)
-- **Constrained output:** System prompt forces exactly one of 4 labels
-- **Low max_tokens:** 10 tokens prevents verbose responses
-- **Model:** gpt-4o-mini (pinned)
-
-### Cost
-
-Using gpt-4o-mini with ~50 tokens per request:
-- **Per classification:** ~$0.0001
-- **10-case eval run:** ~$0.001
-- **Monthly CI (100 runs):** ~$0.10
-
-## AI PR Summary
-
-Automatically posts an AI-generated summary comment on pull requests, including:
-
-- **Summary** — bullet points of key changes
-- **Risk assessment** — Low/Medium/High with reasons
-- **Suggested checks** — tests or manual verification based on changes
-- **Grouped file list** — files organized by area (API, tests, config, etc.)
-
-**Required Secret:** Add `OPENAI_API_KEY` to your repository secrets (Settings → Secrets → Actions).
-
-If the secret is not configured, the workflow skips gracefully with a notice.
-
-Security features:
-- Potential secrets are redacted before sending to OpenAI
-- Large diffs are truncated to prevent excessive API costs
-- Minimal permissions (contents read, pull-requests write)
-
-See [`.github/workflows/ai_pr_summary.yml`](.github/workflows/ai_pr_summary.yml).
-
-## AI Draft Test Generator
-
-Automatically generates draft pytest test suggestions for changed Python source files in pull requests.
-
-**Outputs:**
-- **PR Comment** — Summary with sample test suggestions
-- **Artifact** — Full `draft_tests.md` with per-file test suggestions (7-day retention)
-
-**Focus:**
-- Analyzes Python files under `src/`
-- Ignores venv, lockfiles, markdown, existing tests
-- For each file: what to test, pytest code blocks, testability notes
-- Identifies hard-to-test code and suggests refactor points
-
-**Non-destructive:** Generated tests are suggestions only — they are never committed automatically.
-
-**Required Secret:** `OPENAI_API_KEY` (same as AI PR Summary)
-
-If the secret is not configured, the workflow skips gracefully with a notice.
-
-Security features:
-- Potential secrets are redacted before sending to OpenAI
-- Large patches are truncated to prevent excessive API costs
-- Minimal permissions (contents read, pull-requests write)
-
-See [`.github/workflows/ai_test_draft.yml`](.github/workflows/ai_test_draft.yml).
-
-## AI Release Notes
-
-Automatically generates AI-powered release notes when you push a version tag.
-
-**Trigger:** Push a tag matching `v*` (e.g., `v0.1.0`, `v1.0.0-beta`)
-
-**What it does:**
-
-1. Determines the previous tag automatically
-2. Collects commits between tags (with PR titles where available)
-3. Generates grouped release notes using OpenAI:
-   - Features, Fixes, Documentation, Chore/CI, Other
-   - Highlights breaking changes (conventional commits with `!`)
-4. Creates a **draft** GitHub release (review before publishing)
-5. Uploads release notes as an artifact (7-day retention)
-
-**Creating a release:**
-
-```bash
-# Create and push a tag
-git tag v0.1.0
-git push origin v0.1.0
-
-# Or create an annotated tag
-git tag -a v0.1.0 -m "Release v0.1.0"
-git push origin v0.1.0
-```
-
-After the workflow completes, go to GitHub → Releases to review and publish the draft.
-
-**Required Secret:** `OPENAI_API_KEY` (same as other AI tools)
-
-**Idempotent:** Re-running the workflow on the same tag updates the existing draft release.
-
-Security features:
-
-- Potential secrets are redacted before sending to OpenAI
-- Limited to 50 commits per release to control API costs
-- Minimal permissions (contents write for releases only)
-
-See [`.github/workflows/release_notes.yml`](.github/workflows/release_notes.yml).
+When stack is detected, CI:
+1. Validates PR title
+2. Detects stack from `tools/stack.yml` or markers
+3. Selects commands from `tools/tooling-matrix.yml`
+4. Runs: install → lint → typecheck → test → coverage → build → scan
+5. Uploads coverage artifacts
 
 ## PR Title Convention
 
-This repository enforces [Conventional Commits](https://www.conventionalcommits.org/) for PR titles.
+PRs must follow [Conventional Commits](https://www.conventionalcommits.org/):
 
-**Format:** `type(scope)?: description`
+```
+type(scope)?: description
 
-**Allowed types:**
-- `feat` — new feature
-- `fix` — bug fix
-- `docs` — documentation
-- `chore` — maintenance
-- `refactor` — code refactoring
-- `test` — tests
-- `perf` — performance
-- `ci` — CI/CD changes
-- `build` — build system
+Types: feat, fix, docs, chore, refactor, test, perf, ci, build
+```
 
-**Examples:**
-- `feat: add user profile endpoint`
-- `fix(auth): handle missing token`
+Examples:
+- `feat: add user authentication`
+- `fix(api): handle null response`
 - `docs: update README`
+
+## Examples
+
+See `examples/python-fastapi/` for a complete FastAPI example with:
+- Full CI/CD setup
+- AI PR summary generator
+- AI test draft generator
+- AI release notes generator
+- LLM evaluation tests
+
+## AI CI Features (Optional)
+
+The FastAPI example includes optional AI-powered CI tools:
+
+| Feature | Workflow | Required Secret |
+|---------|----------|-----------------|
+| PR Summary | `ai_pr_summary.yml` | `OPENAI_API_KEY` |
+| Test Drafts | `ai_test_draft.yml` | `OPENAI_API_KEY` |
+| Release Notes | `release_notes.yml` | `OPENAI_API_KEY` |
+| LLM Evals | `llm_evals.yml` | `OPENAI_API_KEY` |
+
+These workflows skip gracefully if the secret is not configured.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for security policy and practices.
+
+## License
+
+MIT
