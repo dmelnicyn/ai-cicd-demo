@@ -1,5 +1,5 @@
-# CI workflow for ai-cicd-demo
-# Runs the same checks as local development (make lint, make coverage)
+# CI workflow for multi-stack template
+# Detects stack and calls reusable workflow with appropriate commands
 
 name: CI
 
@@ -18,7 +18,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Validate PR title follows Conventional Commits format
+  # ============================================
+  # Stack Detection
+  # ============================================
+  detect-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      stack: ${{ steps.detect.outputs.stack }}
+      config: ${{ steps.select.outputs.config }}
+      skip_ci: ${{ steps.select.outputs.skip_ci }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Detect stack
+        id: detect
+        run: echo "stack=$(python tools/ci/detect_stack.py)" >> $GITHUB_OUTPUT
+
+      - name: Select commands
+        id: select
+        run: |
+          config=$(python tools/ci/select_commands.py ${{ steps.detect.outputs.stack }})
+          echo "config=$config" >> $GITHUB_OUTPUT
+          skip_ci=$(echo "$config" | python -c "import sys, json; print(json.load(sys.stdin).get('skip_ci', False))")
+          echo "skip_ci=$skip_ci" >> $GITHUB_OUTPUT
+
+      - name: Debug outputs
+        run: |
+          echo "Stack: ${{ steps.detect.outputs.stack }}"
+          echo "Skip CI: ${{ steps.select.outputs.skip_ci }}"
+          echo "Config: ${{ steps.select.outputs.config }}"
+
+  # ============================================
+  # PR Title Validation (stack-agnostic)
+  # ============================================
   ci-pr-title:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -50,45 +91,41 @@ jobs:
           
           echo "PR title is valid: $PR_TITLE"
 
-  ci-check:
+  # ============================================
+  # Pre-activation Notice
+  # ============================================
+  no-stack-notice:
+    needs: detect-stack
+    if: needs.detect-stack.outputs.skip_ci == 'True'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
-      # Checkout the repository
-      - uses: actions/checkout@v6
+      - name: No stack detected
+        run: |
+          echo "::notice::No technology stack detected. This is expected for new projects."
+          echo ""
+          echo "To activate a stack, do one of the following:"
+          echo "  1. Run the bootstrap-stack Cursor skill"
+          echo "  2. Create tools/stack.yml with your stack"
+          echo "  3. Add a marker file (pyproject.toml, package.json, go.mod, pom.xml)"
+          echo ""
+          echo "See README.md for more information."
 
-      # Set up Python 3.11 (matches pyproject.toml target-version)
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-
-      # Install uv package manager with caching enabled
-      # Caches ~/.cache/uv keyed by uv.lock hash automatically
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
-      # Install project dependencies using Makefile (mirrors local dev)
-      - name: Install dependencies
-        run: make install
-
-      # Run linting: ruff check + mypy
-      - name: Lint
-        run: make lint
-
-      # Run tests with coverage (fails if below 80% threshold)
-      - name: Test with coverage
-        run: make coverage
-
-      # Upload coverage reports as artifacts
-      - name: Upload coverage reports
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: coverage-reports
-          path: |
-            coverage.xml
-            htmlcov/
-          retention-days: 7
+  # ============================================
+  # Main CI (calls reusable workflow)
+  # ============================================
+  ci:
+    needs: detect-stack
+    if: needs.detect-stack.outputs.skip_ci != 'True'
+    uses: ./.github/workflows/reusable-ci.yml
+    with:
+      stack: ${{ needs.detect-stack.outputs.stack }}
+      setup_action: ${{ fromJson(needs.detect-stack.outputs.config).setup_action }}
+      setup_version: ${{ fromJson(needs.detect-stack.outputs.config).default_version }}
+      install_cmd: ${{ fromJson(needs.detect-stack.outputs.config).install }}
+      lint_cmd: ${{ fromJson(needs.detect-stack.outputs.config).lint }}
+      test_cmd: ${{ fromJson(needs.detect-stack.outputs.config).test }}
+      coverage_cmd: ${{ fromJson(needs.detect-stack.outputs.config).coverage }}
+      typecheck_cmd: ${{ fromJson(needs.detect-stack.outputs.config).typecheck }}
+      build_cmd: ${{ fromJson(needs.detect-stack.outputs.config).build }}
+      scan_cmd: ${{ fromJson(needs.detect-stack.outputs.config).scan }}
