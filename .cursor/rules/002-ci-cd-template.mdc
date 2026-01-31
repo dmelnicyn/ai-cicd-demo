@@ -1,0 +1,28 @@
+---
+description: >
+  Guidelines for configuring continuous integration and continuous deployment (CI/CD) pipelines across languages. This rule instructs the agent to bootstrap pipelines based on the detected technology stack.
+globs:
+  - ".github/workflows/**"
+  - ".gitlab/**"
+  - "azure-pipelines.yml"
+alwaysApply: false
+---
+
+# CI/CD Template Guidelines
+
+- **Stack detection & mapping**: Use the global detection mechanism to determine the project’s language and frameworks. Map the stack to a predefined matrix of lint, test, type check, build and security commands. 
+
+- **Template reuse**: Copy pipeline definitions from the `ai-cicd-demo` template repository and adapt them to the detected commands. The template includes a multi‑stage workflow with jobs for linting, testing, type checking, building, security scanning and deployment.
+
+- **Job structure**:
+  1. **Setup environment** – Check out the code, set up language toolchain and cache dependencies.
+  2. **Static analysis** – Run linters and formatters.
+  3. **Tests & coverage** – Run unit tests and produce coverage reports.
+  4. **Type checking/build** – Run type checkers and build artifacts (e.g., Docker image).
+  5. **Security scanning** – Execute vulnerability scanners.
+  6. **Deployment** – Deploy artifacts on release tags or protected branches.
+  7. **Notifications** – Report pipeline status via commit checks.
+
+- **Quality gate enforcement**: Configure the pipeline to fail early if any command fails. Enforce branch protection rules that require passing CI checks before merge.
+
+- **Documentation updates**: Include a job that verifies that `CHANGELOG.md` and other documentation files are updated when releasing new versions.

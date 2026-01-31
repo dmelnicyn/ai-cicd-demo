@@ -1,0 +1,26 @@
+---
+description: >
+  Rules that define security scanning and quality gate requirements for all repositories. This rule enforces vulnerability scanning and outlines the release checklist.
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Security and Quality Gate Requirements
+
+- **Static analysis & vulnerability scanning**: For every repository, run language‑appropriate security scanners:
+  - **Python** – `pip-audit`, `bandit`.
+  - **Node** – `npm audit`, `npx synk`.
+  - **Go** – `govulncheck`.
+  - **Java** – `maven dependency:analyze`, `owasp-dependency-check`.
+- **Dependency updates**: Use dependency update tools (e.g., Dependabot or Renovate) to keep dependencies up to date. The security subagent must review updates and ensure no critical vulnerabilities remain before release.
+- **Secrets detection**: Scan the repository for secrets or API keys before pushing.
+- **Release checklist**:
+  1. Ensure all tests and quality gates are green.
+  2. Update `CHANGELOG.md` with user‑visible changes.
+  3. Bump version numbers according to semantic versioning.
+  4. Tag the release in version control.
+  5. Ensure documentation and API reference are up to date.
+  6. Verify that deployment configuration (e.g., Kubernetes manifests) matches the new version.
+
+- **Escalation policy**: If critical vulnerabilities are found, block the release and inform the user with remediation steps.

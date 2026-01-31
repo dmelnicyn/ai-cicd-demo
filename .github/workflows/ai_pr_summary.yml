@@ -1,5 +1,6 @@
 # AI-powered PR Summary workflow
 # Posts an AI-generated summary comment on pull requests
+# Skips gracefully if OPENAI_API_KEY is not configured or required files are missing
 
 name: AI PR Summary
 
@@ -18,7 +19,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check-prerequisites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v6
+      
+      - name: Check prerequisites
+        id: check
+        env:
+          HAS_SECRET: ${{ secrets.OPENAI_API_KEY != '' }}
+        run: |
+          # Check if secret is configured
+          if [ "$HAS_SECRET" != "true" ]; then
+            echo "::notice::OPENAI_API_KEY not configured, skipping AI PR summary"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Check if required files exist
+          if [ ! -f "Makefile" ]; then
+            echo "::notice::Makefile not found (template mode), skipping AI PR summary"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          if [ ! -f "tools/ai_pr_summary.py" ]; then
+            echo "::notice::tools/ai_pr_summary.py not found, skipping AI PR summary"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "should_run=true" >> $GITHUB_OUTPUT
+
   summarize:
+    needs: check-prerequisites
+    if: needs.check-prerequisites.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
