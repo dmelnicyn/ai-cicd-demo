@@ -94,6 +94,18 @@ jobs:
           echo "PR title is valid: $PR_TITLE"
 
   # ============================================
+  # ci-check (no-op when no stack) - satisfies branch protection
+  # ============================================
+  ci-check:
+    needs: detect-stack
+    if: needs.detect-stack.outputs.skip_ci == 'True'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: No stack - skip full CI
+        run: echo "No stack detected; full CI skipped (see no-stack-notice)."
+
+  # ============================================
   # Pre-activation Notice
   # ============================================
   no-stack-notice:
