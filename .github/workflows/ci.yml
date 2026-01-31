@@ -55,7 +55,9 @@ jobs:
         run: |
           echo "Stack: ${{ steps.detect.outputs.stack }}"
           echo "Skip CI: ${{ steps.select.outputs.skip_ci }}"
-          echo "Config: ${{ steps.select.outputs.config }}"
+          cat << 'CONFIGEOF'
+          Config: ${{ steps.select.outputs.config }}
+          CONFIGEOF
 
   # ============================================
   # PR Title Validation (stack-agnostic)
